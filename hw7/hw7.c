@@ -4,13 +4,13 @@
 #include <openssl/bio.h>
 
 #define KEY_LENGTH 1024
-
+#define PUB_EXP 3
 
 int GetFileSize(FILE *fp){
 	int offset_bkup;
 	int fsize;
 
-	offset_bkup = fteill(fp);
+	offset_bkup = ftell(fp);
 	fseek(fp, 0, SEEK_END);
 	fsize = ftell(fp);
 	fseek(fp, offset_bkup, SEEK_SET);
@@ -19,7 +19,7 @@ int GetFileSize(FILE *fp){
 	return fsize;
 }
 
-void rsa_gen(){
+RSA *rsa_gen(){
 	RSA *keypair = RSA_generate_key(KEY_LENGTH, PUB_EXP, NULL, NULL);
 
 	BIO *pri = BIO_new(BIO_s_mem());
@@ -31,6 +31,9 @@ void rsa_gen(){
 	pri_len = BIO_pending(pri);
 	pub_len = BIO_pending(pub);
 
+	pri_key = malloc(pri_len + 1);
+	pub_key = malloc(pub_len + 1);
+	
 	BIO_read(pri, pri_key, pri_len);
 	BIO_read(pub, pub_key, pub_len);
 
@@ -48,15 +51,16 @@ void rsa_gen(){
 	key_file = fopen("rsa.key", "w");
 	RSA_print_fp(key_file, keypair, 0);
 	fclose(key_file);
+
+	return keypair;
 }
 
-int encrypt(int flen, unsigned char *from, unsigned char *to){
-
-	RSA_public_encrypt(flen, from, to, rsa, RSA_PKCSI_PADDING);
+void encrypt(int flen, unsigned char *from, unsigned char *to, RSA *rsa){
+	RSA_public_encrypt(flen, from, to, rsa, RSA_PKCS1_PADDING);
 }
 
-int decrypt(int flen, unsigned char *from, unsigned char *to){
-	RSA_private_decrypt(flen, from, to, rsa, RSA_PKCSE_PADDING);
+void decrypt(int flen, unsigned char *from, unsigned char *to, RSA *rsa){
+	RSA_private_decrypt(flen, from, to, rsa, RSA_PKCS1_PADDING);
 }
 
 int main(void){
@@ -66,8 +70,10 @@ int main(void){
 	FILE *output_FD;
 	int mode;
 	
+	RSA *key = rsa_gen();
+
 	printf("Input File Name : ");
-	scanf("%s", intputFileName);
+	scanf("%s", inputFileName);
 
 	printf("Input Mode [ 0 : encrypt, 1 : decrypt ] : ");
 	scanf("%d", &mode);
@@ -76,26 +82,26 @@ int main(void){
 		sprintf(outputFileName, "encrypt.txt");
 	
 	else if(mode == 1)
-		sprintf(outputFilename, "decrypt.txt");
+		sprintf(outputFileName, "decrypt.txt");
 
-	intput_FD = fopen(inputFileName, "rb");
+	input_FD = fopen(inputFileName, "rb");
 	output_FD = fopen(outputFileName, "wb");
 	int fileSize = GetFileSize(input_FD);
 	char *from, *to;
 		
-	fread(from, sizeof(char), keySize, sizeof(fileSize) input_FD);
+	fread(from, sizeof(char), sizeof(fileSize), input_FD);
 	
 
 	if(mode == 0)
-		encrypt(sizeof(from), from, to);
+		encrypt(sizeof(from), from, to, key);
 
 	else if(mode == 1)
-		decrypt(sizeof(from), from, to);
+		decrypt(sizeof(from), from, to, key);
 
 	fwrite(to, sizeof(char), sizeof(fileSize), output_FD);
 
 	fclose(output_FD);
-	fclose(intput_FD);
+	fclose(input_FD);
 	
 	return 0;
 }

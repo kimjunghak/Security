@@ -1,4 +1,10 @@
-#include "rsa.h"
+#include <stdio.h>
+#include <openssl/rsa.h>
+#include <openssl/pem.h>
+#include <openssl/bio.h>
+
+#define KEY_LENGTH 1024
+
 
 int GetFileSize(FILE *fp){
 	int offset_bkup;
@@ -11,6 +17,37 @@ int GetFileSize(FILE *fp){
 
 	printf("File Size = %d\n", fsize);
 	return fsize;
+}
+
+void rsa_gen(){
+	RSA *keypair = RSA_generate_key(KEY_LENGTH, PUB_EXP, NULL, NULL);
+
+	BIO *pri = BIO_new(BIO_s_mem());
+	BIO *pub = BIO_new(BIO_s_mem());
+
+	PEM_write_bio_RSAPrivateKey(pri, keypair, NULL, NULL, 0, NULL, NULL);
+	PEM_write_bio_RSAPublicKey(pub, keypair);
+
+	pri_len = BIO_pending(pri);
+	pub_len = BIO_pending(pub);
+
+	BIO_read(pri, pri_key, pri_len);
+	BIO_read(pub, pub_key, pub_len);
+
+	pri_key[pri_len] = '\0';
+	pub_key[pub_len] = '\0';
+
+	FILE *key_file;
+	key_file = fopen("prkey.pem", "w");
+	fprintf(key_file, "%s", pri_key);
+	fclose(key_file);
+	key_file = fopen("pukey.pem", "w");
+	fprintf(key_file, "%s", pub_key);
+	fclose(key_file);
+
+	key_file = fopen("rsa.key", "w");
+	RSA_print_fp(key_file, keypair, 0);
+	fclose(key_file);
 }
 
 int encrypt(int flen, unsigned char *from, unsigned char *to){
